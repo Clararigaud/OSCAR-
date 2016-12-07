@@ -1,0 +1,149 @@
+<html>
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Documentation</title>
+
+</head>
+<body>
+<ul>Fichiers
+    <li>getConfigFromFile.py : fonction de traduction, démo en compilant via le fichier</li>
+    <li>main.py : démarrage de la simuation + création des agents et tout</li>
+    <li>classes.py : tout</li>
+<ul>
+	<li> <em>getConfigFromFile(str file)</em>
+		<p> Prend en entrée un fichier texte de la forme : 
+		<pre><b>world</b> <i>NumberRows</i> <i>NumberCols</i> EmptyIcon_or_EmptyColor
+
+<b>mineral</b> StatusName StatusIcon_or_StatusColor
+<b>var</b> VariableName <i>InitValue</i> <i>TimeStepValue</i>
+<b>status</b> VariableName &lt;|&gt; <i>ThresholdValue</i> NewStatusName
+<b>field</b> FieldName <i>DistanceStepValue</i>
+<b>sensor</b> SensorName FieldName <i>SensitivityValue</i>
+
+<b>vegetal</b> StatusName StatusIcon_or_StatusColor
+<b>var</b> VariableName <i>InitValue</i> <i>TimeStepValue</i>
+<b>status</b> VariableName &lt;|&gt; <i>ThresholdValue</i> NewStatusName
+<b>birth</b> VariableName &lt;|&gt; <i>ThresholdValue</i> NewbornStatusName
+<b>field</b> FieldName <i>DistanceStepValue</i>
+<b>sensor</b> SensorName FieldName <i>SensitivityValue</i>
+
+<b>animal</b> StatusName StatusIcon_or_StatusColor
+<b>var</b> VariableName <i>InitValue</i> <i>TimeStepValue</i>
+<b>status</b> VariableName &lt;|&gt; <i>ThresholdValue</i> NewStatusName
+<b>birth</b> VariableName &lt;|&gt; <i>ThresholdValue</i> NewAgentStatusName
+<b>trace</b> VariableName &lt;|&gt; <i>ThresholdValue</i> NewTraceStatusName
+<b>field</b> FieldName <i>DistanceStepValue</i>
+<b>sensor</b> SensorName FieldName <i>SensitivityValue</i>
+
+<b>agent</b> InitStatusName <i>(row,col) (row,col)...</i>
+		</pre>
+		Retourne un dictionnaire de la forme :
+<pre>
+{
+    "agents": {
+        "agent": {
+            StatusName: {
+                "var": {
+                    VariableName: {
+                        "InitValue": InitValue ou 0,
+                        "TimeStepValue": TimeStepValue ou 0
+                    },
+                    ...
+                },
+                "field": {
+                    FieldName: {
+                        "DistanceStepValue": DistanceStepValue ou 0
+                    },
+                    ...
+                },
+                "colorIcone": StatusIcon_or_StatusColor
+            },
+            ...
+        },
+    "world": {
+        "nbCol": int,
+        "nbRow": int,
+        "color": "#XXX"
+    }
+}</pre>
+</p></li>
+<li><em>class World</em>: classe héritant de object et de Win
+    <ul>
+        <li>Attributs
+            <ul>
+                <li>nbCol -> int</li>
+                <li>nbRow -> int</li>
+                <li>color -> string</li>
+                <li>agents -> [touslesagents]</li>
+                <li>species -> dictionnaire des classes "sous classes" créees dynamiquement</li>
+            </ul>
+        </li>
+        <li>Fonctions</li>
+            <ul>
+                <li><em>timeGoesOn():</em><p>
+                    fonction appellée tous les t+1, actualise tous les agents
+                </p></li>
+            </ul>
+    </ul>
+</li>
+
+<li><em>class Mineral</em>: classe héritant de object et de frame ou button à voir plus tard
+    <ul>
+        <li>Attributs
+            <ul>
+                <li>posx -> int</li>
+                <li>posy -> int</li>
+                <li>color -> string</li>
+                <li>icone -> string ou None</li>
+                <li>vars -> {"nomVar": Var()}</li>
+                <li>fields -> {"nomField": Field()}</li>
+                <li>sensors -> {"nomSensor": Sensor()}</li>
+                <li>rules -> []</li>
+                <li>world -> World()</li>
+            </ul>
+        </li>
+        <li>Fonctions
+            <ul>
+                <li><em>evoluate():</em><p>
+                    Evalue toutes les règles de changement de status et change le statut</p>
+                </li>
+                <li><em>transformsTo(newStatus):</em><p>
+                    Fonction utilisée lorsque l'agent change de statut. Renvoie un objet du type newStatus mais avec les mêmes coordonnées (posx, posy)</p>
+                </li>
+                <li><em>update():</em><p>
+                    Fonction appelée à chaque t+1 qui met à jour les variables via les sensor, qui incrémente les vars de timestepvalue
+                </p></li>
+                <li><em>updateSensors():</em><p>
+                    Fonction appelée par udpate() qui pour chaque sensor calcule la nouvelle valeur à ajouter à sa variable via le tableau fieldMap associé à son Field et à sa position.</br>
+                    -> Determiner comment le calcul est fait</br>
+                    -> à faire</p>
+                </li>
+                <li><em>updateFieldMap():</em><p>
+                    Fonction appelée par udpate() qui pour chaque field met à jour le tableau self.world.fieldMaps[nomdufield] en fonction de ses valeurs et de sa position.</br>
+                    -> à faire</p>
+                </li>
+                <li><em>describeyourself():</em><p>
+                    juste affiche les valeurs des atttributs du mineral</p>
+                </li>
+                <li><em>fieldValueInPlace():</em><p>
+                    calcule la valeur du field à une coordonnée particulière</p>
+                </li>
+                <li><em>detects():</em><p>
+                    </p>
+                </li>
+                <li><em>belt():</em><p>
+                    renvoie un tableau de coordonnées existantes à distance 1</p>
+                </li>
+                 <li><em>distance():</em><p>
+                    calcule de distance</p>
+                </li>
+                
+                
+                
+                
+                
+            </ul>
+        </li>
+    </ul>
+</li>
+</ul>
+</body></html>

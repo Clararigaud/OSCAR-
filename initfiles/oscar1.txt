@@ -1,0 +1,32 @@
+# -----------------------------------------------------------------------------
+# ForestFire : simulates fire propagation
+#
+# Description :
+# - ForestFire is based on 3-state mineral agents: 'tree', 'fire', 'ash'
+# - 'fire' agents generate a 'flame' field on their 8 neighbouring cells
+# - 'flame' field is captured by 'tree' agents
+# - 'tree' turns into 'fire' when surrounded by at least 2 'fire' agents
+# - with rules given below, 'fire' turns into 'ash' within two time steps,
+#   but this delay can be increased by additional transition rules
+# -----------------------------------------------------------------------------
+
+world 16 16 #FFF
+
+mineral tree #0F0
+var hot                # default: InitValue=0 TimeStepValue=0
+sensor hot flame 1     # 'flame' field is scale by 1 and stored in 'hot'
+status hot < 2 tree    # 'tree' -> 'tree' when 'hot' < 2
+status hot > 1 fire    # 'tree' -> 'fire' when 'hot' > 1
+
+mineral fire #F00
+var flame 2            # default: TimeStepValue=0
+field flame -1         # 'flame' field is reduced by 1 for each distance step
+                       # remember that negative field values are replaced by 0
+status ash             # 'fire' -> 'ash' without condition
+
+mineral ash #777       # no rules, so 'ash' -> 'ash' without condition
+
+agent fire (7,7) (8,8) (7,8) (8,7)
+agent tree (0:16,0:7) (0:7,7) (9:16,7) (0:7,8) (9:16,8) (0:16,9:16)
+
+# -----------------------------------------------------------------------------
