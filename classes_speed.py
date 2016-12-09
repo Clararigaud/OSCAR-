@@ -8,6 +8,7 @@ __date__    = "2016-12-06"
 from tkinter import *
 from random import randint as rd
 from getConfigFromFile import *
+import copy
 import numpy
 #scipack
 # ------------------------------------------------------------------------------------------------------------------------
@@ -18,26 +19,27 @@ class World(object):
         self.nbRow = config["world"]["nbRow"]
         self.color = config["world"]["color"]       
         self.agents = []
+        self.models = {}
         self.species = {}
         self.age = 0
         self.instances = None
         if config["instances"] != {}:   
             self.instances = config["instances"]
         else :
-            print("Attention, aucune instanciation dans le fichier de config, il ne va pas se passer grand chsoe")
+            print("Attention, aucune instanciation dans le fichier de config, il ne va pas se passer grand chose")
         #fenetre params 
         self.win = Tk()
         self.win.title("Oscar")
         self.header = Frame(self.win)
-        self.timerlabel = Label(self.header, text=str(self.age))
+        self.timerlabel = Label(self.header, text="T"+str(self.age))
         self.timerlabel.grid(row = 0, column=0)
         self.button = Button(self.header, command = self.startTime, text="start")
         self.button.grid(row =0, column=1)
         self.header.pack()
         self.largeur = 25
-        self.simuspeed = 10 #ms
+        self.simuspeed = 100 #ms
         self.frame = Canvas(self.win, width = self.largeur*self.nbCol, height = self.largeur*self.nbRow, bg=self.color)        
-        
+        self.fieldMap = {}
         for i in range(self.nbRow):
             x0,x1 = i*self.largeur,(i+1)*self.largeur
             for j in range(self.nbCol):
@@ -48,15 +50,22 @@ class World(object):
         for famille, sousfamille in config["agents"].items():
             for nom, params in sousfamille.items():
                 self.species[nom] = self.createClass(eval(famille), nom, self, **params)
+                self.models[nom] = self.species[nom](0,0)
         if self.instances: self.createAgents()
               
         print("Created a world",self.nbRow,"x",self.nbCol,"with",len(self.species),"species !")
         self.frame.pack()
         self.start = False
-        print(len(self.agents))
+        print("Nb agents:" + len(self.agents))
         self.win.mainloop()
         
     def createClass(self, derivedFrom, classname, world, **kwargs):
+        if "field" in kwargs:
+            
+            for key,val in kwargs["field"].items():
+                self.fieldMap[key] = {}
+                self.fieldMap[key]["now"] = numpy.zeros((self.nbRow,self.nbCol))
+                self.fieldMap[key]["futur"] = numpy.zeros((self.nbRow,self.nbCol))
         def __init__(self, posx, posy):
             derivedFrom.__init__(self, posx, posy, world, **kwargs)
         return type(classname, (derivedFrom,), {"__init__": __init__})
@@ -70,32 +79,40 @@ class World(object):
                     interY = coords[1].split(":")
                     for i in range(int(interX[0]),int(interX[1])):
                         for j in range(int(interY[0]),int(interY[1])):
-                            self.createAgent(status, i, j)
+                            self.agents.append(self.createAgent(status, i, j))
                 elif ":" in coords[0]:
                     interX = coords[0].split(":")
                     y = int(coords[1])
                     for i in range(int(interX[0]),int(interX[1])):
-                        self.createAgent(status, i, y)
+                        self.agents.append(self.createAgent(status, i, y))
                 elif ":" in coords[1]:
                     interY = coords[1].split(":")
                     x = int(coords[0])
                     for i in range(int(interY[0]),int(interY[1])):
-                        self.createAgent(status, x, i)
+                        self.agents.append(self.createAgent(status, x, i))
                 else :
-                    self.createAgent(status, int(coords[0]), int(coords[1]))
+                    self.agents.append(self.createAgent(status, int(coords[0]), int(coords[1])))
+                    
+        for i in range(len(self.agents)):
+            for field,Map in self.fieldMap.items():
+                if field in self.agents[i].fields:
+                    self.fieldMap[field]["futur"]+=self.agents[i].fieldMap(field)
+            
                     
     def createAgent(self, status, posx, posy):
-        a = self.species[status](posx,posy)
-        self.agents.append(a)
+        a = copy.deepcopy(self.models[status])
+        a.posx = posx
+        a.posy = posy
+        a.rectangle = self.frame.create_rectangle(posx*self.largeur,posy*self.largeur,(posx+1)*self.largeur,(posy+1)*self.largeur, fill= a.color)
+        a.world = self
+        return a
  
     def updateAgents(self):
-        for i in range(len(self.agents)):
-            self.agents[i].detects()
-        for i in range(len(self.agents)):
-            self.agents[i].update()
-        for i in range(len(self.agents)):
-            self.agents[i] = self.agents[i].evoluate()
-            
+        for field,Map in self.fieldMap.items():
+            Map["now"]=Map["futur"]
+            Map["futur"]= numpy.zeros((self.nbRow,self.nbCol))
+        self.agents = [self.agents[i].update() for i in range(len(self.agents))]
+    
     def startTime(self):
         self.start = True
         self.button["command"] = self.pauseTime
@@ -110,7 +127,7 @@ class World(object):
     def timeGoesOn(self):
         if self.start:
             self.age +=1
-            self.timerlabel["text"] = str(self.age)
+            self.timerlabel["text"] ="T"+ str(self.age)
             self.updateAgents()
             self.win.after(self.simuspeed,self.timeGoesOn)   
 # ------------------------------------------------------------------------------------------------------------------------            
@@ -128,40 +145,34 @@ class mineral(object): # à faire - privatiser les attributs lecture ecriture - 
         elif params["colorIcone"][0]!= "":
             self.icone = params["colorIcone"]
         
-        self.vars = None
+        self.vars = {}
         if "var" in params:
-            self.vars = {}
             for varname,p in params["var"].items():
                 self.vars[varname] = Var(varname, **p)
 
-        self.fields = None
+        self.fields = {}
         if "field" in params:
-            self.fields = {}
             for fieldname,p in params["field"].items():
                 self.fields[fieldname] = Field(self.vars[fieldname], p["DistanceStepValue"])
 
-        self.sensors = None
+        self.sensors = {}
         if "sensor" in params:
-            self.sensors = {}
             for varname, p in params["sensor"].items():
                 self.sensors[varname] = Sensor(self.vars[varname], p["FieldName"], p["SensitivityValue"])
 
-        self.rules = None
+        self.rules = []
         if "status" in params:
-            self.rules = []
             for rules in params["status"]:
                 if len(rules)==1:
                     self.rules.append([rules[0],"True"])                  
                 else:
                     if rules[2]=="=": rules[2]+="="
                     self.rules.append([rules[0],"self.vars[\"%s\"].value"%rules[1] + rules[2] + rules[3]])
-        self.world = world
-        args = [self.posx*self.world.largeur,self.posy*self.world.largeur,(self.posx+1)*self.world.largeur,(self.posy+1)*self.world.largeur]
-        kwargs = {"fill": self.color}
-        self.rectangle = self.world.frame.create_rectangle(*args,**kwargs)
+        self.world = None
 
     def __del__(self):
-        self.world.frame.delete(self.rectangle)
+        if self.rectangle:   
+            self.world.frame.delete(self.rectangle)
         
     def __str__(self):
         r = self.__class__.__name__
@@ -169,46 +180,41 @@ class mineral(object): # à faire - privatiser les attributs lecture ecriture - 
         return r
 
     def fieldValueInPlace(self, fieldName, posx, posy):
-        field = self.fields[fieldName]
-        res = field.value + field.DistanceStepValue*self.distance(posx,posy)
-        if res<0:res = 0.0
-        return res
+        if fieldName in self.fields:
+            res = self.fields[fieldName].value + self.fields[fieldName].DistanceStepValue*self.distance(posx,posy)
+            if res<0:res = 0.0
+            return res
+        return 0.0
     
+    def fieldMap(self, field):
+        """return tab de taille world.nbCol, world.nbRow avec les valeurs du field sur chaque case"""
+        return numpy.array([[(self.fieldValueInPlace(field,i,j))for i in range(self.world.nbCol)]for j in range(self.world.nbRow)])
+
     def evoluate(self):
         """Evalue toutes les regles de changement de status et renvoie un objet du nouvau statut de meme posx, posy, ou le meme """
-        newStatus = self.__class__
+        newStatus = self.__class__.__name__
         if self.rules:
             for rule in self.rules:
                 if eval(rule[1]):
-                    newStatus = self.world.species[rule[0]]
-        new = newStatus(self.posx, self.posy)
-        return new
+                    newStatus = rule[0]    
+        if newStatus != self.__class__.__name__ :
+            a = self.world.createAgent(newStatus, self.posx, self.posy)
+            del self
+            return a 
+        else :
+            if self.vars:
+                for n, var in self.vars.items(): var.reset()
+            return self
 
     def update(self):
-        if self.vars:
-            for nomvar, var in self.vars.items():
-                var.value= var.tplus1value
-                var.update()
-                    
-    def captableAgents(self): #useless, but who knows.. maybe will do
-        """retourne un tableau avec tous les agents à distance 1 de l'agent"""
-        accessibles = []
-        for agent in self.world.agents:
-            if self.distance(agent.posy, agent.posy)==1:
-                accessibles.append(agent)
-        return accessibles
-    
-    def detects(self):
-        """A partir du tableau qui somme les fields, on fait varier la variable associée """
-        if self.sensors:
-            for name, sensor in self.sensors.items():
-                #pour chaque sensor
-                somme = 0
-                for agent in self.world.agents:
-                    if agent.fields:
-                        if (sensor.FieldName in agent.fields) and agent!=self:  #si un agent a le bon field (et que ce n'est pas lui meme)
-                            somme += agent.fieldValueInPlace(sensor.FieldName, self.posx,self.posy)
-                self.vars[name].tplus1value = self.vars[name].value + somme*sensor.SensitivityValue
+        for nomvar, var in self.vars.items():
+            if nomvar in self.sensors :
+                  var.value += float(self.sensors[nomvar].SensitivityValue*self.world.fieldMap[self.sensors[nomvar].FieldName]["now"][self.posy,self.posx]- self.fieldValueInPlace(self.sensors[nomvar].FieldName, self.posx,self.posy))   
+            var.update()
+        temp = self.evoluate()   
+        for nomvar, var in temp.vars.items():
+            if nomvar in temp.world.fieldMap : temp.world.fieldMap[nomvar]["futur"]+= temp.fieldMap(nomvar)
+        return temp
 
     def belt(self):
         """retourne un tableau des coordonnées:(x,y) à distance 1 de l'agent"""
@@ -307,16 +313,13 @@ class Field(object):
     @property
     def value(self):
         return self.__var.value
-    
-    def cartographie(self, x, y):
-        """retourne un tableau x*y contenant la valeur du field"""
-        pass
         
 # ------------------------------------------------------------------------------------------------------------------------ 
 class Var(object):
     """---------------------------------------VAR--------------------------------------------"""
     def __init__(self, name, **params):
         self.__name = name
+        self.__initvalue = params["InitValue"]
         self.__value = params["InitValue"]
         self.__TimeStepValue = params["TimeStepValue"]
         self.__tplus1value = 0.0
@@ -335,25 +338,20 @@ class Var(object):
     def value(self, n):
         assert type(n)==float, "La valeur doit être exprimée en float"
         self.__value = n
-    @property
-    def tplus1value(self):
-        return self.__tplus1value
-
-    @tplus1value.setter
-    def tplus1value(self, n):
-        assert type(n)==float, "La valeur doit être exprimée en float"
-        self.__tplus1value = n
         
     @property
     def TimeStepValue(self):
         return self.__TimeStepValue
 
+    def reset(self):
+        self.value = self.__initvalue
+        
     def update(self):
         """incrémente la valeur de la variable de TimeStepValue"""
         self.value += self.__TimeStepValue
 # =========================================================================================================================
 if __name__ == "__main__" :
-    filename = "blinker"
+    filename = "pulsar"
     dico =getConfigFromFile("initfiles/"+filename+".txt")
     #bigbang
     World(dico)

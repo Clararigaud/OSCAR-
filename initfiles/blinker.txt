@@ -1,0 +1,19 @@
+world 50 50 #FF0
+
+mineral dead #FFF
+var neighbour               # default: InitValue=0 TimeStepValue=0
+status neighbour = 3 live # 'dead' -> 'live' only when 'neighbour' == 3
+sensor neighbour life 1     # 'life' field is scale by 1 and stored in 'neighbour'
+
+mineral live #000
+var life 2                  # default: TimeStepValue=0
+var neighbour               # default: InitValue=0 TimeStepValue=0
+status neighbour < 2 dead
+status neighbour > 1 live
+status neighbour > 3 dead # 'live' -> 'live' only when 'neighbour' == 2 or 3
+field life -1
+sensor neighbour life 1
+
+# blinker (period 2)
+agent live (7,7) (8,7) (9,7)
+agent dead (0:50,0:7) (0:50,8:50) (0:7,7) (10:50,7)

@@ -1,0 +1,18 @@
+world 16 16 #FF0
+
+mineral dead #FFF
+var neighbour
+status neighbour = 3 live
+sensor neighbour life 1
+
+mineral live #000
+var life 2
+var neighbour
+status neighbour < 2 dead
+status neighbour > 1 live
+status neighbour > 3 dead
+field life -1
+sensor neighbour life 1
+
+agent dead (0,0) (2:16,0) (0:2,1) (3:16,1) (3:16,2) (0:16,3:16)
+agent live (1,0) (2,1) (0:3,2)

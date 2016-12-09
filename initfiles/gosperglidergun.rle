@@ -1,0 +1,14 @@
+#N Gosper glider gun
+#C This was the first gun discovered.
+#C As its name suggests, it was discovered by Bill Gosper.
+x = 38, y = 26
+38b$
+25bo$
+23bobo$
+13b2o6b2o12b2o$
+12bo3bo4b2o12b2o$
+b2o8bo5bo3b2o$
+b2o8bo3bob2o4bobo$
+11bo5bo7bo$
+12bo3bo$
+13b2o!
