@@ -25,7 +25,7 @@ sensor photo light 1        # 'photo' stores 'light' field sensor (positive)
 vegetal photophobia #060
 var seed 2 -1               # photophobia germination requires 2 time steps
 birth seed < 1 photophobia  # germination when seed < 1
-status seed < 1 photophobia # reset photophobia status to generate next seed
+status seed < 1 photophobia  # reset photophobia status to generate next seed
 var photo
 sensor photo light -1       # 'photo' stores 'light' field sensor (negative)
 

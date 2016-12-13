@@ -67,6 +67,6 @@ def getConfigFromFile(file):
 
 if __name__ == "__main__" :
     import json
-    file = "initfiles/oscar1.txt"
+    file = "initfiles/oscar4.txt"
     dico = getConfigFromFile(file)
     print(json.dumps(dico, indent=4))
