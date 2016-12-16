@@ -61,7 +61,7 @@ def translate(file, objectposx, objectposy):
                     multiple+= char
 
     gameoflifecontent = "world %s %s #FF0"%(width,height)
-    gameoflifecontent+="\n\nmineral dead #FFF\nvar neighbour\nstatus neighbour = 3 live\nsensor neighbour life 1\n\nmineral live #000\nvar life 2\nvar neighbour\nstatus neighbour < 2 dead\nstatus neighbour > 1 live\nstatus neighbour > 3 dead\nfield life -1\nsensor neighbour life 1\n\n"
+    gameoflifecontent+="\n\nmineral dead #FFF\nvar neighbour\nstatus neighbour < 3 dead   # status lines are evaluated in given order\nstatus neighbour > 2 live   # 'dead' -> 'live' only when 'neighbour' == 3\nstatus neighbour > 3 dead\nsensor neighbour life 1\n\nmineral live #000\nvar life 2\nvar neighbour\nstatus neighbour < 2 dead\nstatus neighbour > 1 live   # 'live' -> 'live' only when 'neighbour' == 2 or 3\nstatus neighbour > 3 dead\nfield life -1\nsensor neighbour life 1\n\n"
     gameoflifecontent+= strdead+"\n"
     gameoflifecontent+=strlive
     tobeclosed.close()

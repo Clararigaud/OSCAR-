@@ -10,24 +10,25 @@ from random import randint as rd
 from getConfigFromFile import *
 import copy
 import numpy
-# ------------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------  
 class World(object):
     """ """
     def __init__(self, config):
         self.nbCol = config["world"]["nbCol"]
         self.nbRow = config["world"]["nbRow"]
         self.color = config["world"]["color"]       
-        self.agents = []
-        self.occupied = [[False for i in range(self.nbCol)]for j in range(self.nbRow)]
-        self.models = {}
+        self.agents = [[None for i in range(self.nbCol)]for j in range(self.nbRow)]
         self.species = {}
+        self.fieldMap = {}
         self.age = 0
         self.instances = None
+
         if config["instances"] != {}:   
             self.instances = config["instances"]
         else :
             print("Attention, aucune instanciation dans le fichier de config, il ne va pas se passer grand chose")
-        #fenetre params 
+
+        #graphique params 
         self.win = Tk()
         self.win.title("Oscar")
         self.header = Frame(self.win)
@@ -38,8 +39,9 @@ class World(object):
         self.header.pack()
         self.largeur = 25
         self.simuspeed = 500 #ms
-        self.frame = Canvas(self.win, width = self.largeur*self.nbCol, height = self.largeur*self.nbRow, bg=self.color)        
-        self.fieldMap = {}
+        self.frame = Canvas(self.win, width = self.largeur*self.nbCol, height = self.largeur*self.nbRow, bg=self.color)
+        
+        
         for i in range(self.nbRow):
             x0,x1 = i*self.largeur,(i+1)*self.largeur
             for j in range(self.nbCol):
@@ -49,28 +51,31 @@ class World(object):
         #création des classes
         for famille, sousfamille in config["agents"].items():
             for nom, params in sousfamille.items():
-                self.species[nom] = self.createClass(eval(famille), nom, self, **params)
-                self.models[nom] = self.species[nom](0,0)
+                self.species[nom] = self.initSpecies(eval(famille), nom, self, **params)
+                #self.models[nom] = self.species[nom](0,0)
         if self.instances: self.createAgents()
               
         print("Created a world",self.nbRow,"x",self.nbCol,"with",len(self.species),"species !")
         self.frame.pack()
         self.start = False
-        print("Nb agents:", len(self.agents))
         self.win.mainloop()
-        
-    def createClass(self, derivedFrom, classname, world, **kwargs):
-        if "field" in kwargs:
-            
+
+    def occupied(self,x,y):
+        return self.agents[y][x]!=None
+    
+    def initSpecies(self, derivedFrom, classname, world, **kwargs):
+        """Instancie et retourne un objet de la classe mineral vegetal ou animal (selon derivedfrom) avec les paramètres spécifiques au status
+           crée un dictionnaire dans le dict filedMap pour un type de field si celui ci n'existe pas déjà, et y ajoute deux listes dim = 2 de 0"""
+
+        if "field" in kwargs: #pour chaque éspèce, on regarde tous les fields et on crée les maps de fields pour chaque type de field
             for key,val in kwargs["field"].items():
                 self.fieldMap[key] = {}
                 self.fieldMap[key]["now"] = numpy.zeros((self.nbRow,self.nbCol))
                 self.fieldMap[key]["futur"] = numpy.zeros((self.nbRow,self.nbCol))
-        def __init__(self, posx, posy):
-            derivedFrom.__init__(self, posx, posy, world, **kwargs)
-        return type(classname, (derivedFrom,), {"__init__": __init__})
+        return derivedFrom(0, 0, world, **kwargs)
 
     def createAgents(self):
+        """Pour chaque ligne du dictionnaire instances, determine les coordonnées et ajoute un agent du bon type à la liste self.agents"""
         for status,coordinates in self.instances.items() :
             for coords in coordinates:
                 coords = coords.split(",")
@@ -79,41 +84,54 @@ class World(object):
                     interY = coords[1].split(":")
                     for i in range(int(interX[0]),int(interX[1])):
                         for j in range(int(interY[0]),int(interY[1])):
-                            self.agents.append(self.createAgent(status, i, j))
+                            self.agents [j][i] = self.createAgent(status, i, j)
+                            
                 elif ":" in coords[0]:
                     interX = coords[0].split(":")
                     y = int(coords[1])
                     for i in range(int(interX[0]),int(interX[1])):
-                        self.agents.append(self.createAgent(status, i, y))
+                        self.agents [y][i] = self.createAgent(status, i, y)
                 elif ":" in coords[1]:
                     interY = coords[1].split(":")
                     x = int(coords[0])
                     for i in range(int(interY[0]),int(interY[1])):
-                        self.agents.append(self.createAgent(status, x, i))
+                        self.agents [i][x] =self.createAgent(status, x, i)
                 else :
-                    self.agents.append(self.createAgent(status, int(coords[0]), int(coords[1])))
-                    
-        for i in range(len(self.agents)):
-            for field,Map in self.fieldMap.items():
-                if field in self.agents[i].fields:
-                    self.fieldMap[field]["futur"]+=self.agents[i].fieldMap(field)
-            
-                    
+                    self.agents [int(coords[1])][int(coords[0])] =self.createAgent(status, int(coords[0]), int(coords[1]))
+
+        #Initialisation des cartes de fields avec les valeurs initiales          
+        for i in range(self.nbCol):
+            for j in range(self.nbRow):
+                if self.occupied(i,j):
+                    for field,Map in self.fieldMap.items():
+                        if field in self.agents[j][i].fields:
+                            self.fieldMap[field]["futur"]+=self.agents[j][i].fieldMap(field)
+                           
     def createAgent(self, status, posx, posy):
-        a = copy.deepcopy(self.models[status])
+        """Retourne un objet du status status, et à la position (posxy,posy)"""
+        a = copy.deepcopy(self.species[status])
         a.posx = posx
         a.posy = posy
         a.rectangle = self.frame.create_rectangle(posx*self.largeur,posy*self.largeur,(posx+1)*self.largeur,(posy+1)*self.largeur, fill= a.color)
         a.world = self
-        self.occupied[posy][posx]=True
         return a
  
     def updateAgents(self):
+        #print("t", self.age)
         for field,Map in self.fieldMap.items():
             Map["now"]=Map["futur"]
             Map["futur"]= numpy.zeros((self.nbRow,self.nbCol))
-        self.agents = [agent.update() for agent in self.agents]
-    
+           # print(Map)
+
+
+        agents = self.agents
+        for y in range(self.nbRow):
+            for x in range(self.nbCol):
+                if agents[y][x]:
+                 #   self.agents[y][x].describeyourself()
+                    self.agents[y][x].update()
+                    
+            
     def startTime(self):
         self.start = True
         self.button["command"] = self.pauseTime
@@ -174,7 +192,6 @@ class mineral(object): # à faire - privatiser les attributs lecture ecriture - 
     def __del__(self):
         if self.rectangle:   
             self.world.frame.delete(self.rectangle)
-        
     def __str__(self):
         r = self.__class__.__name__
         r+=": "
@@ -200,9 +217,13 @@ class mineral(object): # à faire - privatiser les attributs lecture ecriture - 
                     newStatus = rule[0]    
             if newStatus:
                 if newStatus != self.__class__.__name__ :
-                    a = self.world.createAgent(newStatus, self.posx, self.posy)
-                    del self
-                    return a
+                    if newStatus == "death":
+                        del self
+                        return None
+                    else:
+                        a = self.world.createAgent(newStatus, self.posx, self.posy)
+                        del self
+                        return a
                 else :
                     if self.vars:
                         for n, var in self.vars.items(): var.reset()
@@ -213,10 +234,11 @@ class mineral(object): # à faire - privatiser les attributs lecture ecriture - 
             if nomvar in self.sensors :
                   var.value += float(self.sensors[nomvar].SensitivityValue*self.world.fieldMap[self.sensors[nomvar].FieldName]["now"][self.posy,self.posx]- self.fieldValueInPlace(self.sensors[nomvar].FieldName, self.posx,self.posy))   
             var.update()
-        temp = self.evoluate()   
-        for nomvar, var in temp.vars.items():
-            if nomvar in temp.world.fieldMap : temp.world.fieldMap[nomvar]["futur"]+= temp.fieldMap(nomvar)
-        return temp
+        temp = self.evoluate()
+        if temp:
+            for nomvar, var in temp.vars.items():
+                if nomvar in temp.world.fieldMap : temp.world.fieldMap[nomvar]["futur"]+= temp.fieldMap(nomvar)
+        self.world.agents[self.posy][self.posx] = temp
     
     def distance(self, posx,posy):
         res = max(abs(self.posx-posx),abs(self.posy-posy))
@@ -264,7 +286,7 @@ class vegetal(mineral):
                     self.birth.append([rules[0],"True"])                  
                 else:
                     if rules[2]=="=": rules[2]+="="
-                    self.birth.append([rules[0],"self.vars[\"%s\"].value"%rules[1] + rules[2] + rules[3]])
+                    self.birth.append([rules[0],"self.vars[\"%s\"].value"%rules[1] + rules[2] + rules[3], rules[1]])
 
     def maximiseFields(self):
         b = self.belt()
@@ -288,15 +310,45 @@ class vegetal(mineral):
         belt =[]
         for i in range(minx,maxx+1):
             for j in range (miny,maxy+1):
-                if not(i==x and j==y) and not self.world.occupied[j][i]:
+                if not(i==x and j==y) and not self.world.occupied(i,j):
                     belt.append((i,j))
         return belt
     
     def update(self):
+        if self.birth != []:
+            child = None
+            birthvar = None
+            for cas in self.birth:
+                if eval(cas[1]):
+                    child = cas[0]
+                    birthvar = cas[2]
+            if child :
+                self.vars[birthvar].reset()
+                coords = self.maximiseFields()
+                if coords :
+                    self.world.agents[coords[1]][coords[0]]=self.world.createAgent(child, coords[0], coords[1])
+
+        for nomvar, var in self.vars.items():
+            if nomvar in self.sensors :
+                  var.value += float(self.sensors[nomvar].SensitivityValue*self.world.fieldMap[self.sensors[nomvar].FieldName]["now"][self.posy,self.posx]- self.fieldValueInPlace(self.sensors[nomvar].FieldName, self.posx,self.posy))   
+            var.update() 
+        temp = self.evoluate()
+        if temp:
+            for nomvar, var in temp.vars.items():
+                if nomvar in temp.world.fieldMap : temp.world.fieldMap[nomvar]["futur"]+= temp.fieldMap(nomvar)
+        self.world.agents[self.posy][self.posx] = temp
+        
+class animal(vegetal):
+    def __init__(self, posx, posy, world, **params):
+        vegetal.__init__(self, posx, posy, world, **params)
+    
+    def update(self):
+
         for nomvar, var in self.vars.items():
             if nomvar in self.sensors :
                   var.value += float(self.sensors[nomvar].SensitivityValue*self.world.fieldMap[self.sensors[nomvar].FieldName]["now"][self.posy,self.posx]- self.fieldValueInPlace(self.sensors[nomvar].FieldName, self.posx,self.posy))   
             var.update()
+            
         if self.birth != []:
             child = None
             for cas in self.birth:
@@ -305,16 +357,25 @@ class vegetal(mineral):
             if child :  
                 coords = self.maximiseFields()
                 if coords :
-                    self.world.agents.append(self.world.createAgent(child, coords[0], coords[1]))
+                    c = self.world.createAgent(child, coords[0], coords[1])
+                    self.world.agents[coords[1]][coords[0]]=c
+                    for nomvar, var in c.vars.items():
+                        if nomvar in c.world.fieldMap : self.world.fieldMap[nomvar]["futur"]+= c.fieldMap(nomvar)
+                        
+        coords = self.maximiseFields()
+        if coords:
+            self.world.frame.delete(self.rectangle)
+            self.world.agents[self.posy][self.posx] = None
+            self.posx = coords[0]
+            self.posy = coords[1]
+            l = self.world.largeur
+            self.rectangle = self.world.frame.create_rectangle(self.posx*l,self.posy*l,(self.posx+1)*l,(self.posy+1)*l, fill= self.color)
         temp = self.evoluate()
-        for nomvar, var in temp.vars.items():
-            if nomvar in temp.world.fieldMap : temp.world.fieldMap[nomvar]["futur"]+= temp.fieldMap(nomvar)
-        return temp
-    
-class animal(vegetal):
-    def __init__(self, posx, posy, world, **params):
-        vegetal.__init__(self, posx, posy, world, **params)
-        print("Creation animal")    
+        if temp:
+            for nomvar, var in temp.vars.items():
+                if nomvar in temp.world.fieldMap : temp.world.fieldMap[nomvar]["futur"]+= temp.fieldMap(nomvar)
+        self.world.agents[self.posy][self.posx] = temp
+        
 # ------------------------------------------------------------------------------------------------------------------------        
 class Sensor(object):
     """------------------------------------SENSOR--------------------------------------------"""
@@ -401,7 +462,7 @@ class Var(object):
         self.value += self.__TimeStepValue
 # =========================================================================================================================
 if __name__ == "__main__" :
-    filename = "oscar4"
+    filename = "oscar6"
     dico =getConfigFromFile("initfiles/"+filename+".txt")
     #bigbang
     World(dico)

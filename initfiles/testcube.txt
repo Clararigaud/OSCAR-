@@ -2,14 +2,16 @@ world 40 30 #FF0
 
 mineral dead #FFF
 var neighbour
-status neighbour = 3 live
+status neighbour < 3 dead   # status lines are evaluated in given order
+status neighbour > 2 live   # 'dead' -> 'live' only when 'neighbour' == 3
+status neighbour > 3 dead
 sensor neighbour life 1
 
 mineral live #000
 var life 2
 var neighbour
 status neighbour < 2 dead
-status neighbour > 1 live
+status neighbour > 1 live   # 'live' -> 'live' only when 'neighbour' == 2 or 3
 status neighbour > 3 dead
 field life -1
 sensor neighbour life 1
